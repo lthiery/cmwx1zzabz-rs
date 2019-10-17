@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 cortex-m = {version = "0.6.0", features = ["const-fn"] }
-longfi-device = { git = "git@github.com:helium/longfi-device-rs.git", branch = "lthiery/sx126x"}
+longfi-device = { git = "ssh://git@github.com/helium/longfi-device-rs.git", branch = "lthiery/sx126x"}
 embedded-hal = { version = "0.2.3", features = ["unproven"] }
 nb = "0.1.2"
 
