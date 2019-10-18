@@ -34,36 +34,21 @@ pub fn initialize_irq(pin: gpiob::PB4<Uninitialized>, syscfg: &mut hal::syscfg::
 pub type TcxoEn = gpioa::PA8<Output<PushPull>>;
 
 impl LongFiBindings {
-    pub const fn new() -> LongFiBindings {
-        LongFiBindings {
-            bindings: BoardBindings {
-                reset: Some(radio_reset),
-                spi_in_out: Some(spi_in_out),
-                spi_nss: Some(spi_nss),
-                delay_ms: Some(delay_ms),
-                get_random_bits: Some(get_random_bits),
-                set_antenna_pins: Some(set_antenna_pins),
-                set_board_tcxo: None,
-                busy_pin_status: None,
-                reduce_power: None,
-            }
-        }
-    }
-
-    pub fn init(
-        &mut self,
+    pub fn new(
         spi_peripheral: device::SPI1,
         rcc: &mut Rcc,
         spi_sck: gpiob::PB3<Uninitialized>,
         spi_miso: gpioa::PA6<Uninitialized>,
         spi_mosi: gpioa::PA7<Uninitialized>,
-        spi_nss: gpioa::PA15<Uninitialized>,
+        spi_nss_pin: gpioa::PA15<Uninitialized>,
         reset: gpioc::PC0<Uninitialized>,
         rx: gpioa::PA1<Uninitialized>,
         tx_rfo: gpioc::PC2<Uninitialized>,
         tx_boost: gpioc::PC1<Uninitialized>,
-        tcxo_en: Option<TcxoEn>
-    ){
+        tcxo_en_pin: Option<TcxoEn>
+    ) -> LongFiBindings {
+
+        let mut set_board_tcxo = None;
         // store all of the necessary pins and peripherals into statics
         // this is necessary as the extern C functions need access
         // this is safe, thanks to ownership and because these statics are private
@@ -74,21 +59,33 @@ impl LongFiBindings {
                 1_000_000.hz(),
                 rcc,
             ));
-            SPI_NSS = Some(spi_nss.into_push_pull_output());
+            SPI_NSS = Some(spi_nss_pin.into_push_pull_output());
             RESET = Some(reset.into_push_pull_output());
             ANT_SW = Some(AntennaSwitches::new(
                 rx.into_push_pull_output(),
                 tx_rfo.into_push_pull_output(),
                 tx_boost.into_push_pull_output(),
                 ));
-            EN_TCXO = match tcxo_en {
-                Some(pin) => {
-                    self.bindings.set_board_tcxo = Some(set_tcxo);
-                    Some(pin)
-                },
-                None => None
-            };
+            // optionally set a TCXO_EN pin
+            if let Some(tcxo_en) = tcxo_en_pin {
+                EN_TCXO = Some(tcxo_en);
+                set_board_tcxo = Some(set_tcxo as unsafe extern "C" fn(bool) -> u8);
+            }
         };
+
+        LongFiBindings {
+            bindings: BoardBindings {
+                reset: Some(radio_reset),
+                spi_in_out: Some(spi_in_out),
+                spi_nss: Some(spi_nss),
+                delay_ms: Some(delay_ms),
+                get_random_bits: Some(get_random_bits),
+                set_antenna_pins: Some(set_antenna_pins),
+                set_board_tcxo,
+                busy_pin_status: None,
+                reduce_power: None,
+            }
+        }
     }
 }
 
