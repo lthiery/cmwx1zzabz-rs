@@ -1,34 +1,33 @@
 use crate::hal::prelude::*;
 use hal::device;
-use hal::gpio::*;
-use hal::rcc::Rcc;
-use hal::spi;
 use hal::exti;
+use hal::gpio::*;
 use hal::pac;
+use hal::rcc::Rcc;
+use hal::rng;
+use hal::spi;
 use longfi_device::{AntPinsMode, BoardBindings};
 use nb::block;
 
 #[allow(dead_code)]
 pub struct LongFiBindings {
-    pub bindings: BoardBindings
+    pub bindings: BoardBindings,
 }
 
 type Uninitialized = Input<Floating>;
 
 pub type RadioIRQ = gpiob::PB4<Input<PullUp>>;
 
-pub fn initialize_irq(pin: gpiob::PB4<Uninitialized>, syscfg: &mut hal::syscfg::SYSCFG, exti: &mut pac::EXTI) -> gpiob::PB4<Input<PullUp>> {
+pub fn initialize_irq(
+    pin: gpiob::PB4<Uninitialized>,
+    syscfg: &mut hal::syscfg::SYSCFG,
+    exti: &mut pac::EXTI,
+) -> gpiob::PB4<Input<PullUp>> {
+    let dio0 = pin.into_pull_up_input();
 
-        let dio0 = pin.into_pull_up_input();
+    exti.listen(syscfg, dio0.port, dio0.i, exti::TriggerEdge::Rising);
 
-        exti.listen(
-            syscfg,
-            dio0.port,
-            dio0.i,
-            exti::TriggerEdge::Rising,
-        );
-
-        dio0
+    dio0
 }
 
 pub type TcxoEn = gpioa::PA8<Output<PushPull>>;
@@ -37,6 +36,7 @@ impl LongFiBindings {
     pub fn new(
         spi_peripheral: device::SPI1,
         rcc: &mut Rcc,
+        rng: rng::Rng,
         spi_sck: gpiob::PB3<Uninitialized>,
         spi_miso: gpioa::PA6<Uninitialized>,
         spi_mosi: gpioa::PA7<Uninitialized>,
@@ -45,9 +45,8 @@ impl LongFiBindings {
         rx: gpioa::PA1<Uninitialized>,
         tx_rfo: gpioc::PC2<Uninitialized>,
         tx_boost: gpioc::PC1<Uninitialized>,
-        tcxo_en_pin: Option<TcxoEn>
+        tcxo_en_pin: Option<TcxoEn>,
     ) -> LongFiBindings {
-
         let mut set_board_tcxo = None;
         // store all of the necessary pins and peripherals into statics
         // this is necessary as the extern C functions need access
@@ -65,7 +64,8 @@ impl LongFiBindings {
                 rx.into_push_pull_output(),
                 tx_rfo.into_push_pull_output(),
                 tx_boost.into_push_pull_output(),
-                ));
+            ));
+            RNG = Some(rng);
             // optionally set a TCXO_EN pin
             if let Some(tcxo_en) = tcxo_en_pin {
                 EN_TCXO = Some(tcxo_en);
@@ -84,13 +84,12 @@ impl LongFiBindings {
                 set_board_tcxo,
                 busy_pin_status: None,
                 reduce_power: None,
-            }
+            },
         }
     }
 }
 
 static mut EN_TCXO: Option<TcxoEn> = None;
-
 
 #[no_mangle]
 pub extern "C" fn set_tcxo(value: bool) -> u8 {
@@ -105,7 +104,6 @@ pub extern "C" fn set_tcxo(value: bool) -> u8 {
     }
     6
 }
-
 
 type SpiPort = hal::spi::Spi<
     hal::pac::SPI1,
@@ -162,9 +160,23 @@ extern "C" fn delay_ms(ms: u32) {
     cortex_m::asm::delay(ms);
 }
 
-#[no_mangle]
+static mut RNG: Option<rng::Rng> = None;
 extern "C" fn get_random_bits(_bits: u8) -> u32 {
-    0x1
+    unsafe {
+        if let Some(rng) = &mut RNG {
+            // enable starts the ADC conversions that generate the random number
+            rng.enable();
+            // wait until the flag flips; interrupt driven is possible but no implemented
+            rng.wait();
+            // reading the result clears the ready flag
+            let val = rng.take_result();
+            // can save some power by disabling until next random number needed
+            rng.disable();
+            val
+        } else {
+            panic!("No Rng exists!");
+        }
+    }
 }
 
 pub struct AntennaSwitches<Rx, TxRfo, TxBoost> {
