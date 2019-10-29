@@ -5,7 +5,7 @@ use hal::rcc::Rcc;
 use hal::spi;
 use hal::exti;
 use hal::pac;
-use longfi_device::{AntPinsMode, BoardBindings, Spi};
+use longfi_device::{AntPinsMode, BoardBindings};
 use nb::block;
 
 #[allow(dead_code)]
@@ -117,7 +117,7 @@ type SpiPort = hal::spi::Spi<
 >;
 static mut SPI: Option<SpiPort> = None;
 #[no_mangle]
-extern "C" fn spi_in_out(_s: *mut Spi, out_data: u8) -> u8 {
+extern "C" fn spi_in_out(out_data: u8) -> u8 {
     unsafe {
         if let Some(spi) = &mut SPI {
             spi.send(out_data).unwrap();
