@@ -1,6 +1,5 @@
 use crate::hal::prelude::*;
-use hal::device;
-use hal::exti;
+use hal::exti::{self, Exti};
 use hal::gpio::*;
 use hal::pac;
 use hal::rcc::Rcc;
@@ -21,11 +20,16 @@ pub type RadioIRQ = gpiob::PB4<Input<PullUp>>;
 pub fn initialize_irq(
     pin: gpiob::PB4<Uninitialized>,
     syscfg: &mut hal::syscfg::SYSCFG,
-    exti: &mut pac::EXTI,
+    exti: &mut Exti,
 ) -> gpiob::PB4<Input<PullUp>> {
     let dio0 = pin.into_pull_up_input();
 
-    exti.listen(syscfg, dio0.port(), dio0.pin_number(), exti::TriggerEdge::Rising);
+    exti.listen_gpio(
+        syscfg,
+        dio0.port(),
+        exti::ExtiLine::from_raw_line(dio0.pin_number()).unwrap(),
+        exti::TriggerEdge::Rising,
+    );
 
     dio0
 }
@@ -34,7 +38,7 @@ pub type TcxoEn = gpioa::PA8<Output<PushPull>>;
 
 impl LongFiBindings {
     pub fn new(
-        spi_peripheral: device::SPI1,
+        spi_peripheral: pac::SPI1,
         rcc: &mut Rcc,
         rng: rng::Rng,
         spi_sck: gpiob::PB3<Uninitialized>,
