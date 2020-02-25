@@ -13,12 +13,10 @@ pub struct LongFiBindings {
     pub bindings: BoardBindings,
 }
 
-type Uninitialized = Input<Floating>;
-
 pub type RadioIRQ = gpiob::PB4<Input<PullUp>>;
 
 pub fn initialize_irq(
-    pin: gpiob::PB4<Uninitialized>,
+    pin: gpiob::PB4<Input<Floating>>,
     syscfg: &mut hal::syscfg::SYSCFG,
     exti: &mut Exti,
 ) -> gpiob::PB4<Input<PullUp>> {
@@ -41,14 +39,14 @@ impl LongFiBindings {
         spi_peripheral: pac::SPI1,
         rcc: &mut Rcc,
         rng: rng::Rng,
-        spi_sck: gpiob::PB3<Uninitialized>,
-        spi_miso: gpioa::PA6<Uninitialized>,
-        spi_mosi: gpioa::PA7<Uninitialized>,
-        spi_nss_pin: gpioa::PA15<Uninitialized>,
-        reset: gpioc::PC0<Uninitialized>,
-        rx: gpioa::PA1<Uninitialized>,
-        tx_rfo: gpioc::PC2<Uninitialized>,
-        tx_boost: gpioc::PC1<Uninitialized>,
+        spi_sck: gpiob::PB3<Input<Floating>>,
+        spi_miso: gpioa::PA6<Input<Floating>>,
+        spi_mosi: gpioa::PA7<Input<Floating>>,
+        spi_nss_pin: gpioa::PA15<Input<Floating>>,
+        reset: gpioc::PC0<Input<Floating>>,
+        rx: gpioa::PA1<Input<Floating>>,
+        tx_rfo: gpioc::PC2<Input<Floating>>,
+        tx_boost: gpioc::PC1<Input<Floating>>,
         tcxo_en_pin: Option<TcxoEn>,
     ) -> LongFiBindings {
         let mut set_board_tcxo = None;
