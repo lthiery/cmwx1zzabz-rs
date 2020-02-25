@@ -39,9 +39,9 @@ impl LongFiBindings {
         spi_peripheral: pac::SPI1,
         rcc: &mut Rcc,
         rng: rng::Rng,
-        spi_sck: gpiob::PB3<Input<Floating>>,
-        spi_miso: gpioa::PA6<Input<Floating>>,
-        spi_mosi: gpioa::PA7<Input<Floating>>,
+        spi_sck: gpiob::PB3<Analog>,
+        spi_miso: gpioa::PA6<Analog>,
+        spi_mosi: gpioa::PA7<Analog>,
         spi_nss_pin: gpioa::PA15<Input<Floating>>,
         reset: gpioc::PC0<Input<Floating>>,
         rx: gpioa::PA1<Input<Floating>>,
@@ -110,9 +110,9 @@ pub extern "C" fn set_tcxo(value: bool) -> u8 {
 type SpiPort = hal::spi::Spi<
     hal::pac::SPI1,
     (
-        hal::gpio::gpiob::PB3<hal::gpio::Input<hal::gpio::Floating>>,
-        hal::gpio::gpioa::PA6<hal::gpio::Input<hal::gpio::Floating>>,
-        hal::gpio::gpioa::PA7<hal::gpio::Input<hal::gpio::Floating>>,
+        hal::gpio::gpiob::PB3<Analog>,
+        hal::gpio::gpioa::PA6<Analog>,
+        hal::gpio::gpioa::PA7<Analog>,
     ),
 >;
 static mut SPI: Option<SpiPort> = None;
