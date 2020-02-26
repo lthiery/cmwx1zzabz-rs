@@ -1,6 +1,5 @@
 use crate::hal::prelude::*;
-use hal::device;
-use hal::exti;
+use hal::exti::{self, Exti};
 use hal::gpio::*;
 use hal::pac;
 use hal::rcc::Rcc;
@@ -14,18 +13,21 @@ pub struct LongFiBindings {
     pub bindings: BoardBindings,
 }
 
-type Uninitialized = Input<Floating>;
-
 pub type RadioIRQ = gpiob::PB4<Input<PullUp>>;
 
 pub fn initialize_irq(
-    pin: gpiob::PB4<Uninitialized>,
+    pin: gpiob::PB4<Input<Floating>>,
     syscfg: &mut hal::syscfg::SYSCFG,
-    exti: &mut pac::EXTI,
+    exti: &mut Exti,
 ) -> gpiob::PB4<Input<PullUp>> {
     let dio0 = pin.into_pull_up_input();
 
-    exti.listen(syscfg, dio0.port(), dio0.pin_number(), exti::TriggerEdge::Rising);
+    exti.listen_gpio(
+        syscfg,
+        dio0.port(),
+        exti::ExtiLine::from_raw_line(dio0.pin_number()).unwrap(),
+        exti::TriggerEdge::Rising,
+    );
 
     dio0
 }
@@ -34,17 +36,17 @@ pub type TcxoEn = gpioa::PA8<Output<PushPull>>;
 
 impl LongFiBindings {
     pub fn new(
-        spi_peripheral: device::SPI1,
+        spi_peripheral: pac::SPI1,
         rcc: &mut Rcc,
         rng: rng::Rng,
-        spi_sck: gpiob::PB3<Uninitialized>,
-        spi_miso: gpioa::PA6<Uninitialized>,
-        spi_mosi: gpioa::PA7<Uninitialized>,
-        spi_nss_pin: gpioa::PA15<Uninitialized>,
-        reset: gpioc::PC0<Uninitialized>,
-        rx: gpioa::PA1<Uninitialized>,
-        tx_rfo: gpioc::PC2<Uninitialized>,
-        tx_boost: gpioc::PC1<Uninitialized>,
+        spi_sck: gpiob::PB3<Analog>,
+        spi_miso: gpioa::PA6<Analog>,
+        spi_mosi: gpioa::PA7<Analog>,
+        spi_nss_pin: gpioa::PA15<Input<Floating>>,
+        reset: gpioc::PC0<Input<Floating>>,
+        rx: gpioa::PA1<Input<Floating>>,
+        tx_rfo: gpioc::PC2<Input<Floating>>,
+        tx_boost: gpioc::PC1<Input<Floating>>,
         tcxo_en_pin: Option<TcxoEn>,
     ) -> LongFiBindings {
         let mut set_board_tcxo = None;
@@ -108,9 +110,9 @@ pub extern "C" fn set_tcxo(value: bool) -> u8 {
 type SpiPort = hal::spi::Spi<
     hal::pac::SPI1,
     (
-        hal::gpio::gpiob::PB3<hal::gpio::Input<hal::gpio::Floating>>,
-        hal::gpio::gpioa::PA6<hal::gpio::Input<hal::gpio::Floating>>,
-        hal::gpio::gpioa::PA7<hal::gpio::Input<hal::gpio::Floating>>,
+        hal::gpio::gpiob::PB3<Analog>,
+        hal::gpio::gpioa::PA6<Analog>,
+        hal::gpio::gpioa::PA7<Analog>,
     ),
 >;
 static mut SPI: Option<SpiPort> = None;
